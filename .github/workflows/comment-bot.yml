@@ -1,0 +1,37 @@
+name: Instagram Comment Bot
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: instagram-comment-bot
+  cancel-in-progress: false
+
+jobs:
+  comments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DRY_RUN: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run comment cycle
+        run: PYTHONPATH=. python src/main.py comments
