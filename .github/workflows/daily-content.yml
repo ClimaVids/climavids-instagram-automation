@@ -2,14 +2,15 @@ name: Daily Instagram Content
 
 on:
   schedule:
-    - cron: '30 5 * * *'
+    # Daily at 00:00 UTC.
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: instagram-daily-content
+  group: climavids-instagram-automation
   cancel-in-progress: false
 
 jobs:
@@ -19,8 +20,10 @@ jobs:
     env:
       DRY_RUN: 'true'
     steps:
-      - name: Checkout
+      - name: Checkout develop
         uses: actions/checkout@v4
+        with:
+          ref: develop
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,5 +36,5 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Run daily content cycle
-        run: PYTHONPATH=. python src/main.py daily-content
+      - name: Run daily content cycle (dry-run only)
+        run: PYTHONPATH=. python src/content_publisher.py
