@@ -86,3 +86,5 @@ python -m unittest discover -s tests -v
 ```
 
 `tests/test_connection.py` is non-destructive and skips itself unless the Instagram credentials are present.
+
+Phase update: Feed frequency reduced to once daily and an optional daily Story preparation boundary added. No live Feed or Story publishing is enabled.
