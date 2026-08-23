@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -47,7 +48,9 @@ def should_process(comment: Comment, processed_ids: set[str]) -> bool:
     return bool(comment.id and comment.text.strip() and comment.id not in processed_ids and not comment.owner_has_replied)
 
 
-def draft_reply(comment: Comment, use_ai: bool = True) -> str:
+def draft_reply(comment: Comment, use_ai: bool | None = None) -> str:
+    if use_ai is None:
+        use_ai = os.getenv("ENABLE_AI_REPLIES", "true").strip().lower() not in {"0", "false", "no"}
     if use_ai:
         ai_reply = generate_gemini_reply(comment.text)
         if ai_reply and ai_reply.strip():
@@ -85,14 +88,13 @@ def run() -> int:
     state = load_state()
     comments = client.get_recent_comments()
     processed_now = 0
-    use_ai = dry_run_enabled() is False or True
 
     for payload in comments:
         comment = _as_comment(payload)
         if not should_process(comment, state.comment_ids):
             continue
 
-        message = draft_reply(comment, use_ai=use_ai)
+        message = draft_reply(comment)
         if dry_run_enabled():
             print(f"DRY-RUN: would privately reply to {comment.id}: {message}")
         else:
