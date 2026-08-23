@@ -16,7 +16,7 @@ IRAN_TZ = ZoneInfo("Asia/Tehran")
 
 def prepare_story(season_key: str) -> dict[str, object] | None:
     forecast = seasonal_data_or_cache(season_key)
-    if forecast.get("data_quality") == "none":
+    if forecast.get("data_quality") != "numeric_or_mixed":
         return None
     text = generate_seasonal_caption(forecast)
     if not text:
@@ -40,7 +40,7 @@ def publish_daily_story() -> int:
     season_key = f"{now.year}-{now.month:02d}-seasonal-iran"
     story = prepare_story(season_key)
     if not story:
-        print("SKIP: no validated current or cached seasonal forecast data is available; no generic Story will be produced.")
+        print("SKIP: no current or cached numeric seasonal evidence is available; no generic Story will be produced.")
         return 0
 
     media = story.get("media")
