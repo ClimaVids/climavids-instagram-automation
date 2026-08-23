@@ -1,9 +1,4 @@
-"""Fetch and cache Iran seasonal-forecast evidence from authoritative sources.
-
-The adapter is conservative: official source metadata alone never becomes a
-numerical forecast. At least one parsed numeric signal is required before the
-content layer is allowed to prepare a forecast post.
-"""
+"""Fetch and persist Iran seasonal-forecast evidence on the state branch."""
 
 from __future__ import annotations
 
@@ -11,6 +6,8 @@ import hashlib
 import json
 import os
 import re
+import subprocess
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +16,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
+STATE_BRANCH = os.getenv("STATE_BRANCH", "state")
 CACHE_FILE = Path(os.getenv("SEASONAL_CACHE_FILE", "seasonal_forecast_cache.json"))
 ECMWF_CHARTS = "https://charts.ecmwf.int/?facets={%22Range%22:[%22Long+%28Months%29%22,%22Seasonal%22],%22Type%22:[%22Forecasts%22]}"
 CFS_CATALOG = "https://www.ncei.noaa.gov/products/weather-climate-models/climate-forecast-system"
@@ -30,18 +28,54 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _git(*args: str, cwd: str | Path | None = None) -> str:
+    result = subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
 def _load_cache() -> dict[str, Any]:
     try:
         return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
+        pass
+
+    try:
+        _git("git", "fetch", "origin", STATE_BRANCH)
+        raw = _git("git", "show", f"origin/{STATE_BRANCH}:{CACHE_FILE.as_posix()}")
+        return json.loads(raw)
+    except (subprocess.CalledProcessError, ValueError, TypeError, OSError):
         return {"version": 1, "updated_at": None, "records": {}, "latest": None}
 
 
 def _save_cache(cache: dict[str, Any]) -> None:
+    payload = json.dumps(cache, ensure_ascii=False, indent=2) + "\n"
     try:
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        CACHE_FILE.write_text(payload, encoding="utf-8")
     except OSError:
+        return
+
+    # Persist cache outside the application branch so Runner teardown cannot erase it.
+    try:
+        _git("git", "fetch", "origin", STATE_BRANCH)
+        with tempfile.TemporaryDirectory(prefix="climavids-seasonal-cache-") as tmp:
+            worktree = Path(tmp) / "state-worktree"
+            _git("git", "worktree", "add", "--detach", str(worktree), f"origin/{STATE_BRANCH}")
+            try:
+                target = worktree / CACHE_FILE
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(payload, encoding="utf-8")
+                _git("git", "config", "user.name", "github-actions[bot]", cwd=worktree)
+                _git("git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com", cwd=worktree)
+                _git("git", "add", CACHE_FILE.as_posix(), cwd=worktree)
+                status = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=worktree)
+                if status.returncode != 0:
+                    _git("git", "commit", "-m", "Update seasonal forecast cache", cwd=worktree)
+                    _git("git", "push", "origin", f"HEAD:{STATE_BRANCH}", cwd=worktree)
+            finally:
+                subprocess.run(["git", "worktree", "remove", "--force", str(worktree)], check=False, capture_output=True, text=True)
+    except (subprocess.CalledProcessError, OSError):
+        # Cache persistence is best-effort; current-run data can still be used safely.
         pass
 
 
@@ -170,8 +204,6 @@ def seasonal_data_or_cache(season_key: str) -> dict[str, Any]:
         return fetch_seasonal_forecasts(season_key)
     except Exception:
         latest = load_latest_forecast()
-        if latest and latest.get("data_quality") == "numeric_or_mixed":
-            return latest
         if latest:
             return latest
         raise
