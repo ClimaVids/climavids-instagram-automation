@@ -1,18 +1,38 @@
-"""Scheduled Instagram comment processor.
-
-Phase 1 sends private replies only when explicitly taken out of DRY_RUN.
-"""
+"""Scheduled Instagram comment processor."""
 
 from __future__ import annotations
 
+import random
 import time
 from dataclasses import dataclass
 from typing import Any
 
+from free_content_services import generate_gemini_reply
 from instagram_client import InstagramAPIError, InstagramClient, dry_run_enabled
 from state_manager import load_state, save_state
 
-DEFAULT_REPLY = "ممنون از همراهی شما با کلیماویدز 🌱"
+DEFAULT_REPLIES = [
+    "ممنون از همراهی شما با کلیماویدز 🌱",
+    "خیلی ممنون که نظرتون رو با ما به اشتراک گذاشتید 🙏",
+    "خوشحالیم که این مطلب براتون جالب بود 🌍",
+    "ممنون که همراه کلیماویدز هستید؛ نظر شما برای ما مهمه.",
+    "سپاس از شما 🌱 شما درباره این پدیده چه نظری دارید؟",
+    "ممنون از توجه‌تون؛ امروز هوا در شهر شما چطوره؟ ☁️",
+    "خیلی خوبه که این موضوع رو دنبال می‌کنید. تجربه شما چیه؟",
+    "ممنون از کامنتتون 🌦️ شما این تغییر هوا رو چطور حس کردید؟",
+    "سپاسگزاریم 🙏 به نظرتون این پدیده بیشتر در چه زمانی دیده می‌شه؟",
+    "ممنون که نوشتید 🌍 شهر شما هم چنین شرایطی داشته؟",
+    "از همراهی‌تون ممنونیم. شما بیشتر به کدوم پدیده جوی علاقه دارید؟",
+    "مرسی از نظرتون 🌤️ امروز آسمان شهر شما چه شکلیه؟",
+    "ممنون از پیام‌تون؛ تجربه شما می‌تونه برای بقیه هم جالب باشه.",
+    "خیلی ممنون 🌱 اگر دوست داشتید بیشتر درباره‌اش بگید.",
+    "سپاس از همراهی شما. به نظر خودتون دلیل این تغییر چی می‌تونه باشه؟",
+    "ممنون که دیدگاهتون رو مطرح کردید 🌧️ در شهر شما هم همین اتفاق افتاده؟",
+    "خوشحالیم که مشارکت کردید. امروز دمای شهر شما چند درجه بود؟ 🌡️",
+    "مرسی از کامنتتون 🙏 دوست داریم تجربه محلی شما رو هم بدونیم.",
+    "ممنون از شما 🌬️ وضعیت باد در شهر شما چطوره؟",
+    "از اینکه همراه کلیماویدز هستید ممنونیم؛ منتظر تجربه و نظر شما هستیم. 🌍",
+]
 
 
 @dataclass(frozen=True)
@@ -27,8 +47,12 @@ def should_process(comment: Comment, processed_ids: set[str]) -> bool:
     return bool(comment.id and comment.text.strip() and comment.id not in processed_ids and not comment.owner_has_replied)
 
 
-def draft_reply(comment: Comment) -> str:
-    return DEFAULT_REPLY
+def draft_reply(comment: Comment, use_ai: bool = True) -> str:
+    if use_ai:
+        ai_reply = generate_gemini_reply(comment.text)
+        if ai_reply and ai_reply.strip():
+            return ai_reply.strip()
+    return random.choice(DEFAULT_REPLIES)
 
 
 def _as_comment(payload: dict[str, Any]) -> Comment:
@@ -61,13 +85,14 @@ def run() -> int:
     state = load_state()
     comments = client.get_recent_comments()
     processed_now = 0
+    use_ai = dry_run_enabled() is False or True
 
     for payload in comments:
         comment = _as_comment(payload)
         if not should_process(comment, state.comment_ids):
             continue
 
-        message = draft_reply(comment)
+        message = draft_reply(comment, use_ai=use_ai)
         if dry_run_enabled():
             print(f"DRY-RUN: would privately reply to {comment.id}: {message}")
         else:
