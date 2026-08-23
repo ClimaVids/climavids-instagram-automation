@@ -2,15 +2,15 @@ name: Daily Instagram Content
 
 on:
   schedule:
-    # Daily at 00:00 UTC.
-    - cron: '0 0 * * *'
+    - cron: '0 9 * * *'   # 09:00 UTC
+    - cron: '0 21 * * *'  # 21:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: climavids-instagram-automation
+  group: climavids-daily-content
   cancel-in-progress: false
 
 jobs:
@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 15
     env:
       DRY_RUN: 'true'
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout develop
         uses: actions/checkout@v4
