@@ -1,17 +1,17 @@
 """Daily content publishing boundary.
 
-Phase 1 intentionally stays in dry-run mode; real media creation/publication
-will be implemented only after the Meta account and publishing permissions are
-verified.
+Phase 1 never publishes real Instagram content.
 """
 
-from __future__ import annotations
-
-import os
+DRY_RUN = True
 
 
-def publish_daily_content() -> dict[str, object]:
-    dry_run = os.getenv("DRY_RUN", "true").strip().lower() not in {"0", "false", "no"}
-    if dry_run:
-        return {"status": "dry-run", "published": False}
-    raise RuntimeError("Live publishing is not enabled in Phase 1")
+def publish_daily_content() -> int:
+    if DRY_RUN:
+        print("DRY-RUN: در این مرحله هستیم و محتوای روزانه منتشر نمی‌شود؛ فقط اجرای فرضی انجام شد.")
+        return 0
+    raise RuntimeError("Live publishing is disabled until explicit Phase 1 approval.")
+
+
+if __name__ == "__main__":
+    raise SystemExit(publish_daily_content())
