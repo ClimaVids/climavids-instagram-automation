@@ -2,12 +2,13 @@ name: Daily Instagram Content
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # 09:00 UTC
-    - cron: '0 21 * * *'  # 21:00 UTC
+    # Poll every 15 minutes. The application decides whether the current
+    # Iran-local time is inside a publishing window and applies the chance gate.
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: climavids-daily-content
@@ -19,13 +20,17 @@ jobs:
     timeout-minutes: 15
     env:
       DRY_RUN: 'true'
+      RANDOM_POST_CHANCE: '70'
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout develop
         uses: actions/checkout@v4
         with:
           ref: develop
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,5 +43,5 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Run daily content cycle (dry-run only)
+      - name: Evaluate and prepare daily content
         run: PYTHONPATH=. python src/content_publisher.py
