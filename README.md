@@ -9,7 +9,7 @@ Automated Instagram comment processing and daily content preparation for ClimaVi
 - Standard `ubuntu-latest` GitHub-hosted runners only.
 - Comment replies are enabled by the workflow when the required Meta secrets are configured.
 - Daily publishing remains hard-disabled with `DRY_RUN = True`.
-- Concurrency prevents overlapping comment/content runs.
+- Concurrency prevents overlapping runs of the same workflow.
 - Runtime state lives only on the dedicated `state` branch in `state.json`.
 - Rate-limit handling uses exponential backoff and respects `Retry-After` when available.
 - Token expiry is inspected dynamically when the Meta app access token is available; less than 7 days remaining fails the workflow.
@@ -20,11 +20,11 @@ Automated Instagram comment processing and daily content preparation for ClimaVi
 
 ### Pexels
 
-`PEXELS_API_KEY` is used for optional photo/video discovery. Pexels is free and currently documents a default limit of 200 requests/hour and 20,000 requests/month; eligible applications can request higher limits for free. The code treats the service as optional and falls back safely when unavailable. Pexels attribution requirements must be respected when its media is used. citeturn477920search0turn477920search3
+`PEXELS_API_KEY` is used for optional photo/video discovery. Pexels is free and currently documents a default limit of 200 requests/hour and 20,000 requests/month; eligible applications can request higher limits for free. The code treats the service as optional and falls back safely when unavailable. Pexels attribution requirements must be respected when its media is used.
 
 ### Gemini
 
-`GEMINI_API_KEY` is used for optional caption generation. Gemini free-tier limits vary by model and project and are measured using RPM/TPM/RPD rather than one universal request-per-day number, so no unverified fixed quota is hard-coded. The code falls back to a default Persian caption when Gemini is unavailable. citeturn477920search10turn477920search6
+`GEMINI_API_KEY` is used for optional caption generation. Gemini free-tier limits vary by model and project and are measured using RPM/TPM/RPD rather than one universal request-per-day number, so no fixed quota is hard-coded. The code falls back to a default Persian caption when Gemini is unavailable.
 
 ## Required GitHub Actions Secrets
 
