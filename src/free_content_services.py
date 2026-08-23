@@ -49,7 +49,6 @@ def _save_cache(cache: dict[str, Any]) -> None:
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
-        # Cache is an optimization, never a reason to fail the job.
         pass
 
 
@@ -100,55 +99,43 @@ def _cached_media_or_fallback(query: str) -> dict[str, Any]:
     return cache.get("media", {}).get(query, {"source": "fallback", "url": "", "photographer": None})
 
 
-def generate_gemini_caption(topic: str) -> str:
+def _gemini_text(prompt: str, timeout: int = 30) -> str | None:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
-        return fallback_caption()
+        return None
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    prompt = (
-        "برای Instagram کلیماویدز یک کپشن فارسی کوتاه بنویس. "
-        "لحن باید کاملاً محاوره‌ای، گرم، دوستانه و طبیعی باشد؛ مثل نوشته یک هواشناس یا علاقه‌مند جدی به اقلیم، نه متن تبلیغاتی یا رباتیک. "
-        "در صورت مناسب بودن یک سؤال تعاملی از مخاطب بپرس. از ادعای علمی ساختگی و کلیشه‌های مصنوعی خودداری کن. "
-        f"موضوع: {topic}. حداکثر 700 کاراکتر."
-    )
     try:
         response = requests.post(
             url,
             params={"key": api_key},
             json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=30,
+            timeout=timeout,
         )
         response.raise_for_status()
         payload = response.json()
-        text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return text or fallback_caption()
+        return payload["candidates"][0]["content"]["parts"][0]["text"].strip() or None
     except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
-        return fallback_caption()
+        return None
+
+
+def generate_gemini_caption(topic: str) -> str:
+    prompt = (
+        "برای Instagram کلیماویدز یک کپشن فارسی عمیق، دقیق و واقعاً ارزشمند بنویس. "
+        "موضوع را فقط تعریف نکن؛ علت یا سازوکار پدیده، پیامد یا کاربرد آن برای زندگی روزمره، و یک نکته مشخص و قابل فهم برای مخاطب ارائه کن. "
+        "لحن کاملاً محاوره‌ای، گرم، صمیمی و طبیعی باشد؛ مثل یک هواشناس باتجربه یا علاقه‌مند جدی به اقلیم که با مخاطبش راحت صحبت می‌کند، نه مثل متن تبلیغاتی یا رباتیک. "
+        "هیچ عدد یا ادعای علمی را بدون اطمینان نساز. از کلی‌گویی، کلیشه و پرگویی خودداری کن. "
+        "در پایان، اگر طبیعی بود، یک سؤال کوتاه برای تشویق گفتگو بپرس. "
+        f"موضوع: {topic}. حداکثر 1000 کاراکتر."
+    )
+    return _gemini_text(prompt) or fallback_caption()
 
 
 def generate_gemini_reply(comment_text: str) -> str | None:
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return None
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     prompt = (
         "برای کامنت زیر یک پاسخ کوتاه، گرم و کاملاً طبیعی به فارسی بنویس. "
-        "پاسخ باید مشخصاً به محتوای همان کامنت مرتبط باشد، از لحن تبلیغاتی و جمله‌های تکراری دوری کند، "
-        "و اگر مناسب بود یک سؤال کوتاه برای ادامه گفتگو اضافه کند. حداکثر 220 کاراکتر.\n"
+        "پاسخ باید مشخصاً به محتوای همان کامنت مرتبط باشد، نکته‌ای واقعی و مفید اضافه کند یا سؤال مرتبطی بپرسد، "
+        "و از لحن تبلیغاتی و جمله‌های تکراری دوری کند. حداکثر 220 کاراکتر.\n"
         f"کامنت: {comment_text}"
     )
-    try:
-        response = requests.post(
-            url,
-            params={"key": api_key},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=20,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return text or None
-    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError):
-        return None
+    return _gemini_text(prompt, timeout=20)
