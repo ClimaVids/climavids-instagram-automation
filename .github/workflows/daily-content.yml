@@ -1,0 +1,53 @@
+name: Daily Instagram Content
+
+on:
+  schedule:
+    # One scheduler entry. The application applies the exact Iran-local windows.
+    # 06:00-08:00 and 16:00-18:00 UTC cover the requested 10:00-12:00 and
+    # 20:00-22:00 Asia/Tehran windows; the Python code performs the exact edge check.
+    - cron: '*/15 6-8,16-18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: climavids-instagram-automation
+  cancel-in-progress: false
+
+env:
+  RANDOM_POST_CHANCE: '70'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DRY_RUN: 'true'
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Prepare one daily Feed post
+        run: PYTHONPATH=. python src/content_publisher.py
+
+      - name: Prepare one daily Story (optional feature)
+        run: PYTHONPATH=. python src/story_publisher.py

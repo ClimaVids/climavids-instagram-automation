@@ -1,0 +1,7 @@
+{
+  "meta_api_version": "v23.0",
+  "dry_run": true,
+  "comment_schedule_hours": 4,
+  "daily_content_enabled": true,
+  "token_expiry_warning_days": 7
+}
