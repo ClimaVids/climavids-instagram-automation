@@ -34,7 +34,7 @@ def should_attempt_post(now: datetime | None = None, chance_percent: int | None 
 
 def prepare_content(season_key: str) -> dict[str, object] | None:
     forecast = seasonal_data_or_cache(season_key)
-    if forecast.get("data_quality") == "none":
+    if forecast.get("data_quality") != "numeric_or_mixed":
         return None
     caption = generate_seasonal_caption(forecast)
     if not caption:
@@ -62,7 +62,7 @@ def publish_daily_content() -> int:
     season_key = f"{now.year}-{now.month:02d}-seasonal-iran"
     content = prepare_content(season_key)
     if not content:
-        print("SKIP: no validated current or cached seasonal forecast data is available; no generic content will be produced.")
+        print("SKIP: no current or cached numeric seasonal evidence is available; no generic content will be produced.")
         return 0
 
     if DRY_RUN:
