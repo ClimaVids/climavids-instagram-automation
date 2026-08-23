@@ -32,7 +32,7 @@ Comment replies can optionally be personalized by Gemini with `ENABLE_AI_REPLIES
 
 ## Optional daily Story
 
-`src/story_publisher.py` prepares a daily Story concept, using an optional Pexels portrait asset and a short Gemini-generated Persian text. Meta's current Instagram API documentation supports `STORIES` media containers for Instagram Professional publishing, with Stories available to Business accounts in the Facebook Login setup. The project therefore keeps Story publishing modular and disabled until the account type, permissions and media requirements are verified. citeturn237608search0turn237608search2
+`src/story_publisher.py` prepares a daily Story concept, using an optional Pexels portrait asset and a short Gemini-generated Persian text. The Story publisher remains modular and disabled for live publishing until the account type, permissions and media requirements are verified.
 
 ## Free content services
 
