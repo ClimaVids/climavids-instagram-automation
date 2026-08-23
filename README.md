@@ -87,3 +87,5 @@ python -m unittest discover -s tests -v
 3. Run a controlled read-only test.
 4. Confirm the first automated comment-reply cycle.
 5. Keep daily publishing in Dry-Run until explicit approval.
+
+Phase update: irregular scheduling, natural-language fallbacks, and optional AI reply personalization are now part of the develop implementation.
