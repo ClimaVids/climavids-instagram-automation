@@ -1,4 +1,4 @@
-"""Irregular daily content scheduler and safe dry-run publisher."""
+"""Daily Feed scheduler; one high-quality post per Iran-local day."""
 
 from __future__ import annotations
 
@@ -35,14 +35,6 @@ def should_attempt_post(now: datetime | None = None, chance_percent: int | None 
     return random.random() * 100 < chance
 
 
-def content_slot(now: datetime | None = None) -> str | None:
-    now = now or datetime.now(IRAN_TZ)
-    window = current_window(now)
-    if window is None:
-        return None
-    return f"{now.date().isoformat()}:{window}"
-
-
 def prepare_content(topic: str = "آب‌وهوا و اقلیم امروز") -> dict[str, object]:
     media = fetch_pexels_media(topic)
     caption = generate_gemini_caption(topic)
@@ -54,31 +46,31 @@ def prepare_content(topic: str = "آب‌وهوا و اقلیم امروز") -> 
 def publish_daily_content() -> int:
     now = datetime.now(IRAN_TZ)
     window = current_window(now)
-    slot = content_slot(now)
-    if window is None or slot is None:
+    if window is None:
         print("SKIP: outside Iran publishing windows (10:00-12:00 or 20:00-22:00).")
         return 0
 
     state = load_state()
-    if state.metadata.get("last_content_slot") == slot:
-        print(f"SKIP: a post has already been recorded for {slot}.")
+    today = now.date().isoformat()
+    if state.metadata.get("last_feed_post_date") == today:
+        print("SKIP: today's single Feed post has already been recorded.")
         return 0
 
     if not should_attempt_post(now):
-        print(f"SKIP: inside {window} window, but the {os.getenv('RANDOM_POST_CHANCE', '70')}% chance gate declined this run.")
+        print(f"SKIP: inside {window}, but the {os.getenv('RANDOM_POST_CHANCE', '70')}% chance gate declined this run.")
         return 0
 
-    content = prepare_content()
+    content = prepare_content("توضیح عمیق و کاربردی درباره یک پدیده مهم هواشناسی یا اقلیمی")
     if DRY_RUN:
-        print(f"DRY-RUN: would prepare/publish in {window} window: {content['caption']}")
+        print(f"DRY-RUN: one high-quality Feed post would be prepared in the {window} window.")
+        print(f"Caption: {content['caption']}")
         media = content.get("media")
-        print(f"DRY-RUN media source: {media.get('source') if isinstance(media, dict) else 'unknown'}")
+        print(f"Media source: {media.get('source') if isinstance(media, dict) else 'unknown'}")
         return 0
 
-    # Mark the slot only after a real publication succeeds in the future.
-    state.metadata["last_content_slot"] = slot
+    state.metadata["last_feed_post_date"] = today
     save_state(state)
-    raise RuntimeError("Live publishing is disabled until explicit approval.")
+    raise RuntimeError("Live Feed publishing is disabled until explicit approval.")
 
 
 if __name__ == "__main__":
