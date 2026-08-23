@@ -2,45 +2,58 @@
 
 Automated Instagram comment processing and daily content publishing for ClimaVids using GitHub Actions and the Meta Instagram API.
 
-## Phase 1 status
+## Phase 1
 
-- `comment-bot.yml`: scheduled every 4 hours.
-- `daily-content.yml`: scheduled once daily.
+- `comment-bot.yml`: runs every 4 hours at minute 0 (`0 */4 * * *`, UTC).
+- `daily-content.yml`: runs once daily at 00:00 UTC (`0 0 * * *`).
 - Standard `ubuntu-latest` GitHub-hosted runners only.
-- Both workflows are **dry-run only** until Meta credentials and live permissions are verified.
-- `concurrency` prevents overlapping runs of the same job.
-- Runtime state is designed for the dedicated `state` branch.
-- Retry/backoff is implemented for transient Meta API responses.
-- Token-expiry monitoring will use the expiry actually reported by the platform rather than a hard-coded token lifetime.
+- Daily publishing is hard-disabled with `DRY_RUN = True`.
+- Comment replies are also dry-run until live approval and verified Meta permissions.
+- Concurrency is shared so comment and content jobs do not overlap.
+- Runtime state lives only on the dedicated `state` branch in `state.json`.
+- State updates use a temporary Git worktree and atomic commit/push.
+- Rate-limit handling uses exponential backoff: 1, 2, 4, 8, 16 seconds, with `Retry-After` respected where available.
+- Token expiry is inspected dynamically when `META_APP_ACCESS_TOKEN` is available; the workflow fails if less than 7 days remain.
 
-## Required GitHub Actions Secrets (live phase)
+> **Cron correction:** `*/4 * * * *` means every 4 minutes in standard cron syntax. Because this project requires every 4 hours, the correct GitHub Actions expression is `0 */4 * * *`.
 
-Do **not** put these values in source code, README files, issues, logs, or commits.
+## Required GitHub Actions Secrets for the live phase
 
-Planned secrets/configuration:
+Create these only under **Repository → Settings → Secrets and variables → Actions**. Never put values in source files, README, issues, logs, or commits.
 
-- `INSTAGRAM_ACCESS_TOKEN` — Meta/Instagram access token used by the bot.
-- `INSTAGRAM_ACCOUNT_ID` — Instagram professional account ID used by the API calls.
-- `META_APP_ID` — Meta application ID when required by the selected authentication flow.
-- `META_APP_SECRET` — Meta application secret; store only as a GitHub Actions secret.
-- `ALERT_TELEGRAM_BOT_TOKEN` — optional, only if Telegram alerts are enabled.
-- `ALERT_TELEGRAM_CHAT_ID` — optional, only if Telegram alerts are enabled.
+- `INSTAGRAM_ACCESS_TOKEN` — access token authorized for the selected Instagram Professional account and required permissions.
+- `INSTAGRAM_BUSINESS_ACCOUNT_ID` — the Instagram Professional account ID used by the API.
 
-The exact minimum set will be reduced after the Meta app/account configuration is verified. Unused secrets should not be created.
+### Optional token-expiry inspection secret
 
-## State branch
+- `META_APP_ACCESS_TOKEN` — app access token required by Meta's `debug_token` endpoint to inspect `expires_at` / `data_access_expiration_time`. Without it, the bot logs that token expiry cannot be inspected rather than inventing a lifetime.
 
-The `state` branch is reserved for runtime JSON state such as processed comment IDs and token metadata. Main application branches should not contain live runtime state.
+## Current Meta API behavior used by this project
 
-State writes must be atomic and should verify the branch tip before updating to avoid lost updates.
+Meta's current Instagram API documentation shows comment retrieval through the media `/comments` edge and private replies through the professional account `/messages` endpoint with `recipient.comment_id`. A private reply is limited to one message per commenter and must be sent within 7 days of the comment for posts/reels. Live has separate limitations.
 
-## Security
+The project intentionally keeps the API version configurable through `META_API_VERSION` and does not hard-code undocumented rate limits.
 
-- No secrets in Git-tracked files.
-- Workflow `permissions` are explicitly minimized.
-- Fork pull requests must never receive production Instagram/Meta secrets.
-- Live publishing remains disabled until dry-run checks and API permission tests pass.
-- Do not enable write permissions for workflows unless a specific operation requires them.
+## Runtime state format
+
+The `state` branch contains:
+
+```json
+{
+  "comment_ids": [],
+  "last_run_at": null
+}
+```
+
+Only successfully considered comments are added to the state. A future storage backend can replace this interface without changing the comment-processing logic.
+
+## Security model
+
+- `main` is not modified during Phase 1 development.
+- Secrets are never committed.
+- Workflow permissions are explicit and minimal: the comment job needs `contents: write` solely to update the `state` branch; the daily job is read-only.
+- Scheduled workflows do not execute code from arbitrary fork pull requests.
+- Live Instagram writes remain disabled until a controlled test and explicit approval.
 
 ## Local tests
 
@@ -48,11 +61,13 @@ State writes must be atomic and should verify the branch tip before updating to 
 python -m unittest discover -s tests -v
 ```
 
-## Next phase
+`tests/test_connection.py` is non-destructive and skips itself unless the required Instagram credentials are present.
 
-1. Verify the Meta app, Instagram professional account, permissions and token type.
-2. Implement real comment retrieval and owner-reply detection.
-3. Implement state synchronization with the `state` branch.
-4. Add dynamic token-expiry inspection and alerting when the remaining lifetime is below the configured threshold.
-5. Keep live replies disabled until a controlled test succeeds.
-6. Implement daily media generation and publishing after comment automation is stable.
+## Planned next steps
+
+1. Verify the Meta app, Instagram Professional account, token type, and permissions.
+2. Test read-only account and comment retrieval.
+3. Run the scheduler in dry-run mode and inspect logs/state behavior.
+4. Perform one controlled private-reply test.
+5. Only after approval, enable live comment replies.
+6. Build the daily media-generation and publishing pipeline separately.
