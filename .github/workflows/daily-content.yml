@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: climavids-daily-content
+  group: climavids-instagram-automation
   cancel-in-progress: false
 
 jobs:
