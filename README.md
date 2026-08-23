@@ -4,26 +4,26 @@ Automated Instagram comment processing and seasonal-forecast content preparation
 
 ## Scientific identity and scope
 
-This project is now dedicated exclusively to **seasonal forecasting for Iran**. It is scientifically branded as:
+This project is dedicated exclusively to **seasonal forecasting for Iran**. It is scientifically branded as:
 
 - **Dr. Hossein Imanipour (دکتر حسین ایمانی‌پور)** — PhD in Climatology / Atmospheric Sciences.
 - **ClimaVids** — the public-facing climate and weather brand.
 
-Feed and Story content must be derived from current or cached seasonal-forecast evidence. The system must never replace missing forecast evidence with generic weather content or invented values.
+Feed and Story content must be derived from current or cached **numeric seasonal-forecast evidence**. The system never replaces missing forecast evidence with generic weather content or invented values.
 
-Generated captions identify the analysis as Dr. Imanipour's interpretation of global-model guidance, while clearly distinguishing model guidance from certainty.
+Generated captions identify the analysis as Dr. Imanipour's interpretation of global-model guidance, while distinguishing model guidance from certainty.
 
 ## Forecast-data sources
 
 ### ECMWF / SEAS5
 
-Official ECMWF seasonal products are published as SEAS5 seasonal forecasts, including monthly means, anomalies, ensemble information and teleconnection-related products. ECMWF also provides public seasonal Open Charts.
+Official ECMWF seasonal products include monthly means, anomalies, ensemble information and teleconnection-related products, and ECMWF provides public seasonal Open Charts.
 
-Important licensing/access note: ECMWF's public Open Data page states that only a subset of real-time forecast data is free and open. The full SEAS5 raw catalogue is a separate product family. Therefore this project does **not** assume that unrestricted raw SEAS5 files are free. The adapter uses official public ECMWF seasonal chart/catalogue evidence and never fabricates raw SEAS5 numbers.
+Important access note: ECMWF states that only a subset of real-time forecast data is free and open through its Open Data service. The full SEAS5 raw catalogue is a separate product family. This project therefore does **not** assume unrestricted free access to raw SEAS5 files. The adapter uses official public seasonal chart/catalogue evidence and never fabricates raw SEAS5 numbers.
 
 ### NOAA/NCEP CFSv2
 
-NOAA/NCEI documents CFSv2 operational forecasts with **9-month forecasts available to the present**, four cycles per day, with monthly means and other public HTTPS/TDS access paths. This is the primary freely accessible numerical seasonal source in the initial implementation.
+NOAA/NCEI documents CFSv2 operational forecasts with **9-month forecasts available to the present**, four cycles per day, plus monthly means and public HTTPS/TDS access paths. The CFSv2 operational data path is the primary freely accessible numerical seasonal source in the initial implementation.
 
 ### IRIMO
 
@@ -31,19 +31,19 @@ The system performs a best-effort scan of the official Iran Meteorological Organ
 
 ## Seasonal forecast pipeline
 
-`src/seasonal_forecast_fetcher.py` fetches the three source families, stores the latest validated result in a persistent cache, and falls back to the last valid cache on temporary outages.
+`src/seasonal_forecast_fetcher.py` fetches the three source families and stores the latest result in the persistent cache on the dedicated `state` branch. Temporary outages reuse the latest cached result.
 
-The output is explicitly marked as one of:
+The output is marked as:
 
 - `numeric_or_mixed` — at least one source provided numeric evidence.
 - `official-source-metadata-only` — authoritative seasonal source evidence exists but no safe numeric value was parsed.
 - `none` — no current or cached evidence is available.
 
-The content generator is allowed to create a post only when current or cached forecast evidence exists. When no evidence is available, the run stops without producing generic content.
+The content generator is allowed to prepare Feed or Story content **only** for `numeric_or_mixed`. When no numeric seasonal evidence is available, the run stops without producing generic content.
 
 ## Content identity and structure
 
-Each post should cover, where supported by the data:
+Each seasonal post should cover, where supported by the data:
 
 1. A scientific, attention-grabbing seasonal title.
 2. Seasonal precipitation and temperature outlook for Iran.
@@ -54,7 +54,7 @@ Each post should cover, where supported by the data:
 7. Responsible implications for water resources, agriculture and risk management.
 8. A natural audience question to encourage discussion.
 
-Gemini is explicitly instructed to explain uncertainty and never invent numbers or mechanisms.
+Gemini is explicitly instructed to explain uncertainty and never invent numbers or mechanisms. Captions identify Dr. Imanipour and ClimaVids.
 
 ## Current schedule
 
@@ -88,13 +88,13 @@ Never put values in source code, README files, issues, logs or commits.
 
 ## Runtime state
 
-The `state` branch stores processed comment IDs, execution timestamps, forecast cache data and publishing markers. Runtime forecast cache includes the latest source responses so a temporary outage does not force the system into generic content.
+The `state` branch stores processed comment IDs, execution timestamps, forecast cache data and publishing markers. The seasonal forecast cache is persisted outside the application branch so Runner teardown does not erase it.
 
 ## Safety boundaries
 
 - `main` is not modified during development.
 - No forecast numbers are invented.
-- No generic weather post is produced when seasonal evidence is unavailable.
+- No generic weather post or Story is produced when numeric seasonal evidence is unavailable.
 - Live Feed and Story publishing remain disabled until explicit approval.
 - Temporary source outages use the last valid cache when available.
 
@@ -103,3 +103,5 @@ The `state` branch stores processed comment IDs, execution timestamps, forecast 
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+Phase update: seasonal forecasting for Iran is now the sole content domain and the Dr. Imanipour/ClimaVids identity is built into the content policy.
