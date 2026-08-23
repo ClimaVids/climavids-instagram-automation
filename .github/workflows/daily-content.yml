@@ -2,9 +2,10 @@ name: Daily Instagram Content
 
 on:
   schedule:
-    # Poll every 15 minutes. The application decides whether the current
-    # Iran-local time is inside a publishing window and applies the chance gate.
-    - cron: '*/15 * * * *'
+    # One scheduler entry. The application applies the exact Iran-local windows.
+    # 06:00-08:00 and 16:00-18:00 UTC cover the requested 10:00-12:00 and
+    # 20:00-22:00 Asia/Tehran windows; the Python code performs the exact edge check.
+    - cron: '*/15 6-8,16-18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,13 +15,15 @@ concurrency:
   group: climavids-instagram-automation
   cancel-in-progress: false
 
+env:
+  RANDOM_POST_CHANCE: '70'
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       DRY_RUN: 'true'
-      RANDOM_POST_CHANCE: '70'
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GITHUB_TOKEN: ${{ github.token }}
@@ -43,5 +46,8 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Evaluate and prepare daily content
+      - name: Prepare one daily Feed post
         run: PYTHONPATH=. python src/content_publisher.py
+
+      - name: Prepare one daily Story (optional feature)
+        run: PYTHONPATH=. python src/story_publisher.py
