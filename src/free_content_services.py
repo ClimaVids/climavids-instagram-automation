@@ -1,4 +1,4 @@
-"""Optional free-tier content services with safe local fallbacks and cache."""
+"""Free-tier content services with safe fallbacks and no fabricated forecast data."""
 
 from __future__ import annotations
 
@@ -11,28 +11,6 @@ from typing import Any
 import requests
 
 CACHE_PATH = Path(os.getenv("CONTENT_CACHE_PATH", "state/content_cache.json"))
-DEFAULT_CAPTIONS = [
-    "امروز آسمان شهر شما چه حال‌وهوایی دارد؟ 🌤️ یک عکس بفرستید یا برامان بنویسید.",
-    "گاهی یک تغییر کوچک در دما، داستان بزرگی پشت خودش دارد. به نظرتان امروز هوا چه پیامی دارد؟ 🌍",
-    "اگر قرار بود آب‌وهوای امروز شهر شما یک جمله باشد، چی می‌نوشتید؟ ☁️",
-    "یک نکته اقلیمی جالب: چیزی که امروز در آسمان می‌بینیم، همیشه فقط درباره امروز نیست. نظر شما چیه؟",
-    "امروز بیشتر با گرما درگیر بودید یا با باد؟ تجربه‌تان را در کامنت‌ها بنویسید. 🌬️",
-    "ابرها فقط زیبا نیستند؛ هرکدام داستانی از دما و رطوبت را با خودشان دارند. ☁️",
-    "به نظرتان کدام پدیده جوی از همه جذاب‌تر است: باران، برف، مه یا رعدوبرق؟",
-    "هواشناسی یعنی پیدا کردن داستانی که پشت عددهای دما و بارش پنهان شده است. 📊",
-    "امروز دمای شهر شما چند درجه بود؟ بیایید یک رکورد کوچک اقلیمی بسازیم. 🌡️",
-    "گاهی یک نسیم ساده می‌تواند حس یک روز گرم را کاملاً عوض کند. امروز در شهر شما باد چطور بود؟",
-    "اگر از پنجره بیرون را نگاه کنید، اولین نشانه تغییر هوا چیست؟ 👀",
-    "باران برای شما بیشتر حس آرامش دارد یا خاطره؟ تجربه‌تان را با ما شریک شوید. 🌧️",
-    "آسمان هر روز یک منظره تازه دارد؛ امروز نوبت کدام شهر است؟ عکس‌هایتان را بفرستید. 📸",
-    "یک سؤال اقلیمی: چرا بعضی روزها هوا گرم‌تر حس می‌شود، حتی وقتی دما خیلی فرق نکرده؟",
-    "شما برای پیش‌بینی هوا بیشتر به اپلیکیشن‌ها اعتماد می‌کنید یا به نشانه‌های آسمان؟",
-    "تغییرات آب‌وهوا را خیلی وقت‌ها اول از رفتار ابرها و بادها می‌شود فهمید. شما چه نشانه‌ای را دنبال می‌کنید؟",
-    "امروز یک پدیده جوی دیدید که ارزش عکس گرفتن داشته باشد؟ همین‌جا تعریفش کنید. 🌦️",
-    "از نظر شما بهترین فصل برای تماشای آسمان کدام است؟ دلیل‌تان را هم بگویید. 🍂☀️",
-    "یک روز معمولی می‌تواند کلی نکته علمی برای یاد گرفتن داشته باشد. امروز چه چیزی درباره هوا یاد گرفتید؟",
-    "اقلیم فقط عدد و نمودار نیست؛ بخشی از زندگی روزمره ماست. امروز اثرش را کجا بیشتر حس کردید؟ 🌍",
-]
 
 
 def _load_cache() -> dict[str, Any]:
@@ -52,22 +30,10 @@ def _save_cache(cache: dict[str, Any]) -> None:
         pass
 
 
-def fallback_caption() -> str:
-    cache = _load_cache()
-    used = set(cache.get("captions", []))
-    choices = [item for item in DEFAULT_CAPTIONS if item not in used] or DEFAULT_CAPTIONS
-    caption = random.choice(choices)
-    history = list(cache.get("captions", []))
-    history.append(caption)
-    cache["captions"] = history[-40:]
-    _save_cache(cache)
-    return caption
-
-
-def fetch_pexels_media(query: str = "climate weather nature") -> dict[str, Any]:
+def fetch_pexels_media(query: str = "Iran climate seasonal forecast") -> dict[str, Any]:
     api_key = os.getenv("PEXELS_API_KEY", "").strip()
     if not api_key:
-        return _cached_media_or_fallback(query)
+        return _cached_media_or_empty(query)
     try:
         response = requests.get(
             "https://api.pexels.com/v1/search",
@@ -78,7 +44,7 @@ def fetch_pexels_media(query: str = "climate weather nature") -> dict[str, Any]:
         response.raise_for_status()
         photos = response.json().get("photos", [])
         if not photos:
-            return _cached_media_or_fallback(query)
+            return _cached_media_or_empty(query)
         photo = random.choice(photos)
         result = {
             "source": "pexels",
@@ -91,12 +57,12 @@ def fetch_pexels_media(query: str = "climate weather nature") -> dict[str, Any]:
         _save_cache(cache)
         return result
     except (requests.RequestException, ValueError, TypeError, KeyError):
-        return _cached_media_or_fallback(query)
+        return _cached_media_or_empty(query)
 
 
-def _cached_media_or_fallback(query: str) -> dict[str, Any]:
+def _cached_media_or_empty(query: str) -> dict[str, Any]:
     cache = _load_cache()
-    return cache.get("media", {}).get(query, {"source": "fallback", "url": "", "photographer": None})
+    return cache.get("media", {}).get(query, {"source": "none", "url": "", "photographer": None})
 
 
 def _gemini_text(prompt: str, timeout: int = 30) -> str | None:
@@ -119,23 +85,24 @@ def _gemini_text(prompt: str, timeout: int = 30) -> str | None:
         return None
 
 
-def generate_gemini_caption(topic: str) -> str:
+def generate_seasonal_caption(forecast: dict[str, Any]) -> str | None:
+    """Generate an identity-branded caption strictly from supplied forecast evidence."""
     prompt = (
-        "برای Instagram کلیماویدز یک کپشن فارسی عمیق، دقیق و واقعاً ارزشمند بنویس. "
-        "موضوع را فقط تعریف نکن؛ علت یا سازوکار پدیده، پیامد یا کاربرد آن برای زندگی روزمره، و یک نکته مشخص و قابل فهم برای مخاطب ارائه کن. "
-        "لحن کاملاً محاوره‌ای، گرم، صمیمی و طبیعی باشد؛ مثل یک هواشناس باتجربه یا علاقه‌مند جدی به اقلیم که با مخاطبش راحت صحبت می‌کند، نه مثل متن تبلیغاتی یا رباتیک. "
-        "هیچ عدد یا ادعای علمی را بدون اطمینان نساز. از کلی‌گویی، کلیشه و پرگویی خودداری کن. "
-        "در پایان، اگر طبیعی بود، یک سؤال کوتاه برای تشویق گفتگو بپرس. "
-        f"موضوع: {topic}. حداکثر 1000 کاراکتر."
+        "برای Instagram کلیماویدز یک کپشن فارسی درباره پیش‌بینی فصلی ایران بنویس. "
+        "این محتوا باید با نام «دکتر ایمانی‌پور» و برند ClimaVids شناسه‌دار باشد و ترجیحاً با «بر اساس تحلیل دکتر ایمانی‌پور از مدل‌های جهانی...» یا جمله‌ای هم‌معنا شروع شود. "
+        "فقط از داده‌ها و شواهد موجود در متن ورودی استفاده کن؛ هیچ عدد، درصد، منطقه یا رابطه اقلیمی را حدس نزن. "
+        "اگر داده عددی کافی نیست، صریحاً محدودیت را توضیح بده و ادعای کمی نساز. "
+        "ساختار پیشنهادی: عنوان علمی، خلاصه بارش و دما، اعداد موجود با واحد و منبع، تحلیل مختصر سازوکارهای کلان فقط اگر در داده‌ها پشتیبانی شده، پیامدهای محتاطانه برای آب و کشاورزی، و یک سؤال تعاملی. "
+        "لحن علمی اما قابل‌فهم، گرم، انسانی و مسئولانه باشد. حداکثر 1400 کاراکتر.\n\n"
+        f"داده‌های پیش‌بینی فصلی:\n{json.dumps(forecast, ensure_ascii=False, indent=2)[:18000]}"
     )
-    return _gemini_text(prompt) or fallback_caption()
+    return _gemini_text(prompt, timeout=45)
 
 
 def generate_gemini_reply(comment_text: str) -> str | None:
     prompt = (
-        "برای کامنت زیر یک پاسخ کوتاه، گرم و کاملاً طبیعی به فارسی بنویس. "
-        "پاسخ باید مشخصاً به محتوای همان کامنت مرتبط باشد، نکته‌ای واقعی و مفید اضافه کند یا سؤال مرتبطی بپرسد، "
-        "و از لحن تبلیغاتی و جمله‌های تکراری دوری کند. حداکثر 220 کاراکتر.\n"
+        "برای کامنت زیر یک پاسخ کوتاه، گرم و طبیعی به فارسی بنویس. "
+        "پاسخ باید مشخصاً به محتوای همان کامنت مرتبط باشد، از ادعای علمی ساختگی دوری کند و در صورت مناسب بودن یک سؤال مرتبط بپرسد. حداکثر 220 کاراکتر.\n"
         f"کامنت: {comment_text}"
     )
     return _gemini_text(prompt, timeout=20)
