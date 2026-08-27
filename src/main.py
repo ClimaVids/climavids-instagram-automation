@@ -4,17 +4,12 @@ from __future__ import annotations
 
 import argparse
 
-from comment_handler import Comment, should_process, draft_reply
-from content_publisher import publish_daily_content
+from .comment_handler import run as run_comment_cycle
+from .content_publisher import publish_daily_content
 
 
 def run_comments() -> int:
-    # Transport integration is intentionally not wired to live Instagram yet.
-    sample = Comment(id="dry-run", text="این یک تست است")
-    if should_process(sample, set()):
-        print(draft_reply(sample))
-    print("Comment cycle completed in safe dry-run mode.")
-    return 0
+    return run_comment_cycle()
 
 
 def run_daily_content() -> int:

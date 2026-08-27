@@ -96,11 +96,7 @@ class InstagramClient:
         return returned_id
 
     def get_recent_comments(self, media_limit: int = 10, comments_per_media: int = 50) -> list[dict[str, Any]]:
-        """Fetch recent comments from recent owned media.
-
-        The API exposes comments from a media object. We therefore first fetch
-        recent media IDs and then query each media's comments edge.
-        """
+        """Fetch recent comments from recent owned media."""
         media = self.request(
             "GET",
             f"{self.account_id}/media",
@@ -133,11 +129,9 @@ class InstagramClient:
         return False
 
     def send_private_reply(self, comment_id: str, message: str) -> dict[str, Any]:
-        """Send one private reply to a comment.
-
-        This endpoint is intentionally guarded by DRY_RUN in the caller. Meta
-        documents the /messages endpoint with recipient.comment_id.
-        """
+        """Send one private reply to a comment, guarded at the API boundary."""
+        if dry_run_enabled():
+            return {"dry_run": True, "comment_id": str(comment_id), "message": message}
         return self.request(
             "POST",
             f"{self.account_id}/messages",
@@ -148,11 +142,7 @@ class InstagramClient:
         )
 
     def get_token_expiry(self) -> int | None:
-        """Return the token expiry Unix timestamp when Meta can expose it.
-
-        The Graph API debug_token endpoint requires an app access token. It is
-        therefore optional in Phase 1; without it, this method returns None.
-        """
+        """Return the token expiry Unix timestamp when Meta can expose it."""
         app_token = os.getenv("META_APP_ACCESS_TOKEN", "").strip()
         if not app_token:
             return None
@@ -172,7 +162,7 @@ class InstagramClient:
         return int(expiry) if expiry is not None else None
 
     def check_and_warn_token(self, threshold_days: int = 7) -> int | None:
-        """Fail the workflow when a known token expiry is within threshold_days."""
+        """Fail when a known token expiry is within threshold_days."""
         expiry = self.get_token_expiry()
         if expiry is None:
             print("Token expiry could not be inspected because META_APP_ACCESS_TOKEN is not configured.")

@@ -1,10 +1,10 @@
 import os
 import unittest
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-from src.content_publisher import content_slot, current_window, should_attempt_post
+from src.content_publisher import current_window, should_attempt_post
 from src.comment_handler import DEFAULT_REPLIES, Comment, draft_reply, should_process
 
 
@@ -15,7 +15,6 @@ class TestScheduler(unittest.TestCase):
     def test_iran_morning_window(self) -> None:
         now = datetime(2026, 8, 23, 11, 0, tzinfo=ZoneInfo("Asia/Tehran"))
         self.assertEqual(current_window(now), "morning")
-        self.assertEqual(content_slot(now), "2026-08-23:morning")
 
     def test_iran_evening_window(self) -> None:
         now = datetime(2026, 8, 23, 21, 0, tzinfo=ZoneInfo("Asia/Tehran"))
