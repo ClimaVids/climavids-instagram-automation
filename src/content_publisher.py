@@ -36,7 +36,7 @@ def prepare_content(season_key: str) -> dict[str, object] | None:
     """Prepare an official ECMWF chart and a short audience-facing caption."""
     del season_key
     try:
-        chart = fetch_ecmwf_precipitation_chart(area="GLOB", stats="ensm")
+        chart = fetch_ecmwf_precipitation_chart(area="ASIA", stats="ensm")
     except Exception as exc:
         print(f"SKIP: official ECMWF chart could not be retrieved ({type(exc).__name__}).")
         return None
