@@ -1,4 +1,4 @@
-"""Free-tier content services with safe fallbacks and no fabricated forecast data."""
+"""Free-tier content services for ClimaVids."""
 
 from __future__ import annotations
 
@@ -85,18 +85,34 @@ def _gemini_text(prompt: str, timeout: int = 30) -> str | None:
         return None
 
 
-def generate_seasonal_caption(forecast: dict[str, Any]) -> str | None:
-    """Generate an identity-branded caption strictly from supplied forecast evidence."""
-    prompt = (
-        "برای Instagram کلیماویدز یک کپشن فارسی درباره پیش‌بینی فصلی ایران بنویس. "
-        "این محتوا باید با نام «دکتر ایمانی‌پور» و برند ClimaVids شناسه‌دار باشد و ترجیحاً با «بر اساس تحلیل دکتر ایمانی‌پور از مدل‌های جهانی...» یا جمله‌ای هم‌معنا شروع شود. "
-        "فقط از داده‌ها و شواهد موجود در متن ورودی استفاده کن؛ هیچ عدد، درصد، منطقه یا رابطه اقلیمی را حدس نزن. "
-        "اگر داده عددی کافی نیست، صریحاً محدودیت را توضیح بده و ادعای کمی نساز. "
-        "ساختار پیشنهادی: عنوان علمی، خلاصه بارش و دما، اعداد موجود با واحد و منبع، تحلیل مختصر سازوکارهای کلان فقط اگر در داده‌ها پشتیبانی شده، پیامدهای محتاطانه برای آب و کشاورزی، و یک سؤال تعاملی. "
-        "لحن علمی اما قابل‌فهم، گرم، انسانی و مسئولانه باشد. حداکثر 1400 کاراکتر.\n\n"
-        f"داده‌های پیش‌بینی فصلی:\n{json.dumps(forecast, ensure_ascii=False, indent=2)[:18000]}"
+def generate_chart_caption(chart: dict[str, Any]) -> str | None:
+    """Create a short Persian caption from official chart metadata only."""
+    period = str(chart.get("valid_month", ""))[:7]
+    forecast_type = str(chart.get("forecast_type", "ensemble mean"))
+    default = (
+        "چشم‌انداز بارش ایران در دوره پیش‌رو بر اساس جدیدترین خروجی فصلی ECMWF.\n"
+        f"نوع خروجی: {forecast_type}؛ دوره آغازشده از {period}.\n"
+        "نقشه، چشم‌انداز احتمالاتی مدل را نشان می‌دهد و به معنی پیش‌بینی قطعی برای هر شهر نیست.\n\n"
+        "Chart: ECMWF — CC BY 4.0\n"
+        "ClimaVids | دکتر ایمانی‌پور"
     )
-    return _gemini_text(prompt, timeout=45)
+
+    if not os.getenv("GEMINI_API_KEY", "").strip():
+        return default
+
+    prompt = (
+        "برای صفحه علمی ClimaVids یک کپشن فارسی کوتاه و دقیق درباره نقشه رسمی پیش‌بینی فصلی بنویس. "
+        "هیچ عدد یا نتیجه‌ای خارج از متادیتای ورودی اضافه نکن. مخاطب می‌خواهد بداند چشم‌انداز بارش ایران چیست. "
+        "حداکثر 500 کاراکتر. در پایان حتماً این دو خط را عیناً حفظ کن:\n"
+        "Chart: ECMWF — CC BY 4.0\nClimaVids | دکتر ایمانی‌پور\n\n"
+        f"Chart metadata:\n{json.dumps(chart, ensure_ascii=False, indent=2)[:8000]}"
+    )
+    return _gemini_text(prompt, timeout=30) or default
+
+
+def generate_seasonal_caption(forecast: dict[str, Any]) -> str | None:
+    """Backward-compatible wrapper for older callers."""
+    return generate_chart_caption(forecast)
 
 
 def generate_gemini_reply(comment_text: str) -> str | None:
