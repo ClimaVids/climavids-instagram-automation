@@ -11,8 +11,10 @@ on:
 permissions:
   contents: write
 
+# Share the state branch lock with the comment workflow to prevent concurrent
+# state/cache commits from racing and losing updates.
 concurrency:
-  group: climavids-instagram-automation
+  group: climavids-instagram-automation-state
   cancel-in-progress: false
 
 env:
@@ -23,15 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # Content generation/preparation is safe, but live publishing stays off.
       DRY_RUN: 'true'
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout develop
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: main
           fetch-depth: 0
           persist-credentials: true
 
@@ -47,7 +50,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Prepare one daily Feed post
-        run: PYTHONPATH=. python src/content_publisher.py
+        run: python -m src.content_publisher
 
       - name: Prepare one daily Story (optional feature)
-        run: PYTHONPATH=. python src/story_publisher.py
+        run: python -m src.story_publisher

@@ -9,8 +9,10 @@ on:
 permissions:
   contents: write
 
+# Comment and content jobs share the state branch; serialize them to avoid
+# lost-update races when either workflow commits runtime state/cache.
 concurrency:
-  group: climavids-comment-bot
+  group: climavids-instagram-automation-state
   cancel-in-progress: false
 
 jobs:
@@ -18,17 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DRY_RUN: 'false'
+      # Live replies remain disabled until explicit approval.
+      DRY_RUN: 'true'
       INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
       INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
       META_APP_ACCESS_TOKEN: ${{ secrets.META_APP_ACCESS_TOKEN }}
       META_API_VERSION: 'v23.0'
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout develop
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: main
           fetch-depth: 0
           persist-credentials: true
 
@@ -44,4 +47,4 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Run comment cycle
-        run: PYTHONPATH=. python src/comment_handler.py
+        run: python -m src.comment_handler

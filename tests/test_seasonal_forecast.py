@@ -1,11 +1,13 @@
 import unittest
 
-from seasonal_forecast_fetcher import fetch_seasonal_forecasts
+from src.seasonal_forecast_fetcher import fetch_seasonal_forecasts
 
 
 class TestSeasonalForecastContract(unittest.TestCase):
-    def test_result_has_required_structure(self):
-        # No network call in CI: validate the public result contract with a minimal fixture.
+    def test_fetcher_is_importable_and_has_public_contract(self):
+        self.assertTrue(callable(fetch_seasonal_forecasts))
+
+    def test_minimal_result_fixture_matches_public_contract(self):
         fixture = {
             "season_key": "2026-08-seasonal-iran",
             "sources": {

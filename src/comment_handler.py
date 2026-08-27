@@ -8,9 +8,9 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from free_content_services import generate_gemini_reply
-from instagram_client import InstagramAPIError, InstagramClient, dry_run_enabled
-from state_manager import load_state, save_state
+from .free_content_services import generate_gemini_reply
+from .instagram_client import InstagramAPIError, InstagramClient, dry_run_enabled
+from .state_manager import load_state, save_state
 
 DEFAULT_REPLIES = [
     "ممنون از همراهی شما با کلیماویدز 🌱",
@@ -82,9 +82,26 @@ def _reply_with_backoff(client: InstagramClient, comment_id: str, message: str) 
     raise RuntimeError("Unreachable retry state")
 
 
+def _local_dry_run() -> int:
+    sample = Comment(id="dry-run", text="این یک تست است")
+    if should_process(sample, set()):
+        print(f"DRY-RUN: would privately reply to {sample.id}: {draft_reply(sample)}")
+    print("Comment cycle completed in safe local dry-run mode; no Instagram API call was made.")
+    return 0
+
+
 def run() -> int:
+    token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "").strip()
+    account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", "").strip()
+    if dry_run_enabled() and (not token or not account_id):
+        return _local_dry_run()
+
     client = InstagramClient.from_env()
-    client.check_and_warn_token()
+    if not dry_run_enabled():
+        client.check_and_warn_token()
+    else:
+        print("DRY-RUN: Instagram reads are enabled; all comment replies remain blocked.")
+
     state = load_state()
     comments = client.get_recent_comments()
     processed_now = 0

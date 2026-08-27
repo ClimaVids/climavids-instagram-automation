@@ -1,15 +1,16 @@
 import unittest
 
-from src.state_manager import BotState, dump_state, load_state
 from src.comment_handler import Comment, should_process
+from src.state_manager import BotState
 
 
 class StateTests(unittest.TestCase):
     def test_state_round_trip(self):
-        original = BotState(processed_comments={"1", "2"}, token_expiry_unix=123)
-        restored = load_state(dump_state(original))
-        self.assertEqual(restored.processed_comments, original.processed_comments)
-        self.assertEqual(restored.token_expiry_unix, 123)
+        original = BotState(comment_ids={"1", "2"}, last_run_at="2026-08-23T12:00:00+00:00", metadata={"example": True})
+        restored = BotState.from_dict(original.to_dict())
+        self.assertEqual(restored.comment_ids, original.comment_ids)
+        self.assertEqual(restored.last_run_at, original.last_run_at)
+        self.assertEqual(restored.metadata, original.metadata)
 
     def test_processed_comment_is_skipped(self):
         self.assertFalse(should_process(Comment("1", "hello"), {"1"}))

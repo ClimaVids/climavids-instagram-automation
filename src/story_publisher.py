@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from free_content_services import fetch_pexels_media, generate_seasonal_caption
-from seasonal_forecast_fetcher import seasonal_data_or_cache
-from state_manager import load_state, save_state
+from .free_content_services import fetch_pexels_media, generate_seasonal_caption
+from .seasonal_forecast_fetcher import seasonal_data_or_cache
+from .state_manager import load_state, save_state
 
 DRY_RUN = True
 STORY_ENABLED = True
