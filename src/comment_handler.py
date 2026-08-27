@@ -91,17 +91,11 @@ def _local_dry_run() -> int:
 
 
 def run() -> int:
-    token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "").strip()
-    account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", "").strip()
-    if dry_run_enabled() and (not token or not account_id):
+    if dry_run_enabled():
         return _local_dry_run()
 
     client = InstagramClient.from_env()
-    if not dry_run_enabled():
-        client.check_and_warn_token()
-    else:
-        print("DRY-RUN: Instagram reads are enabled; all comment replies remain blocked.")
-
+    client.check_and_warn_token()
     state = load_state()
     comments = client.get_recent_comments()
     processed_now = 0
@@ -112,12 +106,8 @@ def run() -> int:
             continue
 
         message = draft_reply(comment)
-        if dry_run_enabled():
-            print(f"DRY-RUN: would privately reply to {comment.id}: {message}")
-        else:
-            _reply_with_backoff(client, comment.id, message)
-            print(f"Replied privately to comment {comment.id}")
-
+        _reply_with_backoff(client, comment.id, message)
+        print(f"Replied privately to comment {comment.id}")
         state.comment_ids.add(comment.id)
         processed_now += 1
 
