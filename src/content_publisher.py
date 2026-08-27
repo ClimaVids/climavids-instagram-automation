@@ -1,4 +1,4 @@
-"""Daily Feed scheduler; one data-driven seasonal post per Iran-local day."""
+"""Daily Feed scheduler using official forecast charts."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import random
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-from .free_content_services import fetch_pexels_media, generate_seasonal_caption
-from .seasonal_forecast_fetcher import seasonal_data_or_cache
+from .free_content_services import generate_chart_caption
+from .official_chart_engine import fetch_ecmwf_precipitation_chart
 from .state_manager import load_state, save_state
 
 DRY_RUN = True
@@ -33,14 +33,17 @@ def should_attempt_post(now: datetime | None = None, chance_percent: int | None 
 
 
 def prepare_content(season_key: str) -> dict[str, object] | None:
-    forecast = seasonal_data_or_cache(season_key)
-    if forecast.get("data_quality") != "numeric_or_mixed":
+    """Prepare an official ECMWF chart and a short audience-facing caption."""
+    del season_key
+    try:
+        chart = fetch_ecmwf_precipitation_chart(area="GLOB", stats="ensm")
+    except Exception as exc:
+        print(f"SKIP: official ECMWF chart could not be retrieved ({type(exc).__name__}).")
         return None
-    caption = generate_seasonal_caption(forecast)
+    caption = generate_chart_caption(chart)
     if not caption:
         return None
-    media = fetch_pexels_media("Iran seasonal forecast climate map")
-    return {"season_key": season_key, "forecast": forecast, "caption": caption, "media": media}
+    return {"chart": chart, "caption": caption}
 
 
 def publish_daily_content() -> int:
@@ -59,20 +62,21 @@ def publish_daily_content() -> int:
         print(f"SKIP: inside {window}, but the {os.getenv('RANDOM_POST_CHANCE', '70')}% chance gate declined this run.")
         return 0
 
-    season_key = f"{now.year}-{now.month:02d}-seasonal-iran"
-    content = prepare_content(season_key)
+    content = prepare_content(today)
     if not content:
-        print("SKIP: no current or cached numeric seasonal evidence is available; no generic content will be produced.")
+        print("SKIP: no verified official forecast chart is available; no generic content will be produced.")
         return 0
 
+    chart = content["chart"]
     if DRY_RUN:
-        print(f"DRY-RUN: seasonal Feed post for Iran would be prepared in the {window} window.")
-        print(f"Season key: {content['season_key']}")
+        print(f"DRY-RUN: official forecast chart prepared in the {window} window.")
+        print(f"Chart URL: {chart['chart_url']}")
+        print(f"Image URL: {chart['image_url']}")
         print(f"Caption: {content['caption']}")
         return 0
 
     state.metadata["last_feed_post_date"] = today
-    state.metadata["last_forecast_season_key"] = season_key
+    state.metadata["last_forecast_chart"] = chart
     save_state(state)
     raise RuntimeError("Live Feed publishing is disabled until explicit approval.")
 
