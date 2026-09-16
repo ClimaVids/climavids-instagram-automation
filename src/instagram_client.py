@@ -10,6 +10,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -22,6 +23,37 @@ class TokenExpiryWarning(RuntimeError):
     """Raised when a token has less than the configured safe lifetime remaining."""
 
 
+ALLOWED_GRAPH_HOSTS = frozenset({
+    "https://graph.instagram.com",
+    "https://graph.facebook.com",
+})
+
+
+def validate_graph_host(value: str) -> str:
+    """Return a canonical Meta Graph host or reject an unsafe override.
+
+    Access tokens are sent as request parameters, so allowing arbitrary hosts
+    here could disclose the token to an attacker who controls configuration.
+    """
+    candidate = value.strip().rstrip("/")
+    parsed = urlparse(candidate)
+    if (
+        candidate not in ALLOWED_GRAPH_HOSTS
+        or parsed.scheme != "https"
+        or parsed.netloc not in {"graph.instagram.com", "graph.facebook.com"}
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            "META_GRAPH_HOST must be exactly https://graph.instagram.com "
+            "or https://graph.facebook.com"
+        )
+    return candidate
+
+
 @dataclass(frozen=True)
 class InstagramClient:
     access_token: str
@@ -30,6 +62,9 @@ class InstagramClient:
     graph_host: str = "https://graph.instagram.com"
     timeout: int = 30
     max_retries: int = 4
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "graph_host", validate_graph_host(self.graph_host))
 
     @classmethod
     def from_env(cls) -> "InstagramClient":
@@ -43,7 +78,7 @@ class InstagramClient:
             access_token=token,
             account_id=account_id,
             api_version=os.getenv("META_API_VERSION", "v23.0"),
-            graph_host=os.getenv("META_GRAPH_HOST", "https://graph.instagram.com").rstrip("/"),
+            graph_host=os.getenv("META_GRAPH_HOST", "https://graph.instagram.com"),
         )
 
     @property
